@@ -26,8 +26,7 @@ class ChatRequest(BaseModel):
 @app.post("/analyze/snapshot")
 async def analyze_snapshot(file: UploadFile = File(...)):
     """
-    Analyzes a single snapshot, detects pose, and returns all 33
-    landmark coordinates in the format the frontend expects.
+    Analyzes a single snapshot using the global MediaPipe pose instance.
     """
     try:
         # 1. Read and decode the image file
@@ -37,14 +36,13 @@ async def analyze_snapshot(file: UploadFile = File(...)):
         if img is None:
             raise HTTPException(status_code=400, detail="Could not decode image.")
 
-        # 2. Process the image for pose
+        # 2. Process the image using the global pose object
         results = pose.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         
         if not results.pose_landmarks:
             raise HTTPException(status_code=400, detail="Could not detect a person in the image.")
 
         # 3. Format landmarks for the frontend
-        # The JS code expects an array of objects with "id" and "x" keys
         landmarks_data = []
         all_landmarks = results.pose_landmarks.landmark
         
@@ -61,6 +59,8 @@ async def analyze_snapshot(file: UploadFile = File(...)):
         # 4. Return the data
         return {"landmarks": landmarks_data}
 
+    except HTTPException as http_exc:
+        raise http_exc # Re-raise FastAPI errors
     except Exception as e:
         print(f"Snapshot Error: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing image: {e}")
